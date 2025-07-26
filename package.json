@@ -15,12 +15,22 @@
     "@babel/core": "^7.28.0",
     "@babel/preset-env": "^7.28.0",
     "@babel/preset-typescript": "^7.27.1",
+    "@types/mongoose": "^5.11.96",
     "@types/node-telegram-bot-api": "^0.64.9",
+    "@typescript-eslint/eslint-plugin": "^8.38.0",
+    "@typescript-eslint/parser": "^8.38.0",
+    "eslint": "^9.32.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.6.2",
     "webpack": "^5.100.0",
     "webpack-cli": "^6.0.1"
   },
   "dependencies": {
+    "date-fns": "^4.1.0",
     "dotenv": "^17.2.0",
-    "node-telegram-bot-api": "^0.66.0"
+    "mongodb": "^6.18.0",
+    "mongoose": "^8.16.5",
+    "node-telegram-bot-api": "^0.66.0",
+    "sharp": "^0.34.3"
   }
 }
