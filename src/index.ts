@@ -5,6 +5,6 @@ import { Logger } from './app/core/services/logger-service';
 Logger.log(LogMessages.ON_INIT);
 
 const app = new App();
-async () => {
+(async () => {
   await app.init();
-};
+})();

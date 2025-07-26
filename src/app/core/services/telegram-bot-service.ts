@@ -43,11 +43,10 @@ export class TelegramBotService {
       telegramId: msg.chat.id,
       state: ChatContextStates.ChatInit,
     };
-    await this.chatContextRepository.create(newChat);
+    await this.chatContextRepository.upsertOne(newChat);
   }
 
   init(): void {
-    console.log('E');
     // Matches === /start
     this.telegramBot.onText(/\/start/, async (msg) => {
       await this.handleOnStart(msg);
@@ -106,7 +105,7 @@ export class TelegramBotService {
 
     const highestResPhoto = photoArray[photoArray.length - 1];
 
-    if (highestResPhoto.width > 512 && highestResPhoto.height > 512) {
+    if (highestResPhoto.width < 512 || highestResPhoto.height < 512) {
       // TODO: Add logger for this exception
       chatContext.state = ChatContextStates.BotWaitingForImage;
       await this.chatContextRepository.upsertOne(chatContext);

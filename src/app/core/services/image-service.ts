@@ -15,6 +15,7 @@ export class ImageService {
         width: 512,
         height: 512,
       })
+      .png()
       .toBuffer();
   }
 
