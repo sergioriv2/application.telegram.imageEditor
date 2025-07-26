@@ -1,7 +1,8 @@
 export class ConfigModel {
+  AwsMongoDBSecretAccessKey: string;
+  AwsMongoDBAccessKey: string;
+  AwsRegion: string;
   TelegramApiToken: string;
-  MongoDBSecret: string;
-  MongoDBUser: string;
-  MongoDBCluster: string;
-  MongoDbCollectionName: string;
+  MongoDBClusterName: string;
+  MongoDBAppName: string;
 }

@@ -8,12 +8,19 @@ export class MongoDbService {
 
   async init(): Promise<void> {
     try {
-      const user = this.configuration.properties.MongoDBUser;
-      const secret = this.configuration.properties.MongoDBSecret;
-      const cluster = this.configuration.properties.MongoDBCluster;
-      const uri = `mongodb+srv://${user}:${secret}@${cluster}`;
-      await mongoose.connect(uri);
-      // this.client = new MongoClient(`mongodb+srv://${user}:${secret}@${cluster}`);
+      const user = encodeURIComponent(this.configuration.properties.AwsMongoDBAccessKey);
+      const secret = encodeURIComponent(this.configuration.properties.AwsMongoDBSecretAccessKey);
+      const appName = this.configuration.properties.MongoDBAppName;
+      const dbCluster = this.configuration.properties.MongoDBClusterName;
+
+      const uri = `mongodb+srv://${user}:${secret}@${dbCluster}/`;
+      await mongoose.connect(uri, {
+        tls: true,
+        authMechanism: 'MONGODB-AWS',
+        retryWrites: true,
+        authSource: '$external',
+        appName,
+      });
       Logger.log(LogMessages.DATABASE_COMPLETE);
     } catch (error) {
       console.log(error);

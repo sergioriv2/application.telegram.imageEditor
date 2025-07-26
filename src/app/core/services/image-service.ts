@@ -2,7 +2,15 @@ import sharp from 'sharp';
 import Stream from 'stream';
 
 export class ImageService {
-  constructor() {}
+  private validMimeTypes: string[];
+  constructor() {
+    this.validMimeTypes = ['image/png', 'image/jpeg', 'image/tiff'];
+  }
+
+  isValidMimeType(mimeType: string): boolean {
+    console.log({ mimeType });
+    return this.validMimeTypes.includes(mimeType);
+  }
 
   async cropImage(buffer: Buffer, width: number, height: number) {
     const widthOffsetCalc = Math.floor((width - 512) / 2);

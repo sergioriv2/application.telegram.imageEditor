@@ -25,32 +25,35 @@ export class TelegramBotService {
 
   async handleOnCropImage(msg: TelegramBot.Message): Promise<void> {
     const chatContext = await this.chatContextRepository.findOne(msg.chat.id);
-
+    console.log({
+      chatContext,
+    });
     switch (chatContext.state) {
       case ChatContextStates.ChatInit:
       case ChatContextStates.CroppedImageDelivered:
         await this.handleOnChatInit(msg, chatContext);
         break;
       case ChatContextStates.BotWaitingForImage:
-        await this.handleOnBotWaitingForImage(msg, chatContext);
+        await this.handleOnBotWaitingForImage(msg.photo, chatContext);
+        await this.handleOnBotWaitingForDocument(msg.document, chatContext);
         break;
       default:
     }
   }
 
-  async handleOnStart(msg: TelegramBot.Message): Promise<void> {
+  async handleOnStart(chatId: number): Promise<void> {
     const newChat: IChatContext = {
-      telegramId: msg.chat.id,
+      telegramId: chatId,
       state: ChatContextStates.ChatInit,
     };
     await this.chatContextRepository.upsertOne(newChat);
+    this.telegramBot.sendMessage(chatId, StartMessage.Response);
   }
 
   init(): void {
     // Matches === /start
     this.telegramBot.onText(/\/start/, async (msg) => {
-      await this.handleOnStart(msg);
-      this.telegramBot.sendMessage(msg.chat.id, StartMessage.Response);
+      await this.handleOnStart(msg.chat.id);
     });
 
     this.telegramBot.onText(/\/cropImage/, async (msg) => {
@@ -61,7 +64,11 @@ export class TelegramBotService {
     //   await this.handleOnCropImage(msg);
     // });
 
-    this.telegramBot.on('photo', async (msg) => {
+    this.telegramBot.on('document', async (msg) => {
+      await this.handleOnCropImage(msg);
+    });
+
+    this.telegramBot.on('image', async (msg) => {
       await this.handleOnCropImage(msg);
     });
 
@@ -90,20 +97,49 @@ export class TelegramBotService {
     AND: The state of the telegram chat is [BotWaitingForImage]
     THEN: The state of the telegram chat is kept to [BotWaitingForImage]
   */
-  private async handleOnBotWaitingForImage(msg: TelegramBot.Message, chatContext: IChatContext): Promise<void> {
-    chatContext.state = ChatContextStates.UserWaitingForBotImage;
-    await this.chatContextRepository.upsertOne(chatContext);
-    const photoArray = msg.photo;
+  private async handleOnBotWaitingForDocument(
+    document: TelegramBot.Document,
+    chatContext: IChatContext,
+  ): Promise<void> {
+    if (!document) return;
+
+    // chatContext.state = ChatContextStates.UserWaitingForBotImage;
+    // await this.chatContextRepository.upsertOne(chatContext);
+    const hasValidMimeType = this.imageService.isValidMimeType(document.mime_type);
 
     // Capture the image that was sent
-    if (!photoArray || photoArray.length <= 0) {
+    if (!hasValidMimeType) {
       // TODO: Add logger for this exception
-      chatContext.state = ChatContextStates.BotWaitingForImage;
-      await this.chatContextRepository.upsertOne(chatContext);
+      this.telegramBot.sendMessage(chatContext.telegramId, CropImageResponses.ImageNotSentOnBotWaitingForImage);
+      await this.handleOnStart(chatContext.telegramId);
       return;
     }
 
-    const highestResPhoto = photoArray[photoArray.length - 1];
+    if (document.thumb?.width < 512 || document.thumb?.height < 512) {
+      // TODO: Add logger for this exception
+      this.telegramBot.sendMessage(chatContext.telegramId, CropImageResponses.ImageNotSentOnBotWaitingForImage);
+      await this.handleOnStart(chatContext.telegramId);
+      return;
+    }
+
+    await this.handleOnBotProcessingImage(chatContext, document);
+  }
+
+  private async handleOnBotWaitingForImage(photo: TelegramBot.PhotoSize[], chatContext: IChatContext): Promise<void> {
+    console.log({
+      photo,
+    });
+    if (!photo) return;
+
+    // Capture the image that was sent
+    // if (!photo || photo.length <= 0) {
+    //   // TODO: Add logger for this exception
+    //   chatContext.state = ChatContextStates.BotWaitingForImage;
+    //   await this.chatContextRepository.upsertOne(chatContext);
+    //   return;
+    // }
+
+    const highestResPhoto = photo[photo.length - 1];
 
     if (highestResPhoto.width < 512 || highestResPhoto.height < 512) {
       // TODO: Add logger for this exception
@@ -112,7 +148,7 @@ export class TelegramBotService {
       return;
     }
 
-    await this.handleOnBotProcessingImage(msg, chatContext, highestResPhoto);
+    await this.handleOnBotProcessingImage(chatContext, null, highestResPhoto);
   }
 
   /*
@@ -124,22 +160,30 @@ export class TelegramBotService {
     AND: The state of the telegram chat is updated to [UserWaitingForBotImage]
   */
   private async handleOnBotProcessingImage(
-    msg: TelegramBot.Message,
     chatContext: IChatContext,
-    highestResPhoto: TelegramBot.PhotoSize,
+    document?: TelegramBot.Document,
+    photo?: TelegramBot.PhotoSize,
   ): Promise<void> {
-    chatContext.state = ChatContextStates.BotProcessingImage;
-    await this.chatContextRepository.upsertOne(chatContext);
+    // chatContext.state = ChatContextStates.BotWaitingForImage;
+    // await this.chatContextRepository.upsertOne(chatContext);
 
-    const fileStream = this.telegramBot.getFileStream(highestResPhoto.file_id);
+    const fileStream = this.telegramBot.getFileStream(document.file_id);
     const fileBuffer = await this.imageService.streamToBuffer(fileStream);
-    const fileCropped = await this.imageService.cropImage(fileBuffer, highestResPhoto.width, highestResPhoto.height);
+    let fileCropped: Buffer;
+
+    if (document) {
+      fileCropped = await this.imageService.cropImage(fileBuffer, document.thumb.width, document.thumb.height);
+    }
+
+    if (photo) {
+      fileCropped = await this.imageService.cropImage(fileBuffer, photo.width, photo.height);
+    }
 
     chatContext.state = ChatContextStates.CroppedImageDelivered;
     await this.chatContextRepository.upsertOne(chatContext);
 
-    this.telegramBot.sendDocument(msg.chat.id, fileCropped);
-    this.telegramBot.sendMessage(msg.chat.id, CropImageResponses.CroppedImageDelivered);
+    this.telegramBot.sendDocument(chatContext.telegramId, fileCropped);
+    this.telegramBot.sendMessage(chatContext.telegramId, CropImageResponses.CroppedImageDelivered);
   }
 
   /*
