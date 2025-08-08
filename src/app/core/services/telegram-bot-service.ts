@@ -32,7 +32,9 @@ export class TelegramBotService {
     const regex = new RegExp(`\\/${group.command}`);
     this.telegramBot.onText(regex, async (msg) => {
       await group.run(msg);
-      this.telegramBot.sendMessage(msg.chat.id, group.responseMessage);
+      if (group.responseMessage) {
+        this.telegramBot.sendMessage(msg.chat.id, group.responseMessage);
+      }
     });
   }
 

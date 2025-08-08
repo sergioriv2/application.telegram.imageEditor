@@ -3,9 +3,13 @@ import { ChatDetailService } from '../services/chat-detail-service';
 import { ImageService } from '../services/image-service';
 import { ChatState } from '../../constants/chat-states.constants';
 import { IChatDetail } from '../interfaces/chat-detail.interface';
-import { CropImageResponses } from '../../constants/response-constants';
+import { ChatResponses } from '../../constants/response-constants';
+import sharp from 'sharp';
 
 export class InteractionManager {
+  private readonly stickerWidth: number = 512;
+  private readonly stickerHeight: number = 512;
+
   constructor(
     private readonly chatDetailService: ChatDetailService,
     private readonly imageService: ImageService,
@@ -27,9 +31,16 @@ export class InteractionManager {
   }
 
   async handleChatImage(message: TelegramBot.Message): Promise<void> {
-    console.log({ message });
     const chatDetails = await this.chatDetailService.findOne(message.chat.id);
-    await this.handleSharedEvents(message, chatDetails, this.processImage);
+    // await this.handleSharedEvents(message, chatDetails, this.processImage);
+    switch (chatDetails.state) {
+      case ChatState.BotWaitingForImage:
+        await this.processImage(message, chatDetails);
+        break;
+      default:
+        this.botInstace.sendMessage(chatDetails.telegramId, 'No entendi. Chau');
+        break;
+    }
   }
 
   async handleChatDocument(message: TelegramBot.Message): Promise<void> {
@@ -63,17 +74,17 @@ export class InteractionManager {
     // Capture the image that was sent
     if (!hasValidMimeType) {
       // TODO: Add logger for this exception
-      this.botInstace.sendMessage(chatDetails.telegramId, CropImageResponses.ImageNotSentOnBotWaitingForImage);
+      this.botInstace.sendMessage(chatDetails.telegramId, ChatResponses.ImageNotSentOnBotWaitingForImage);
       return;
     }
 
-    if (document.thumb?.width < 512 || document.thumb?.height < 512) {
+    if (document.thumb?.width < this.stickerWidth || document.thumb?.height < this.stickerHeight) {
       // TODO: Add logger for this exception
-      this.botInstace.sendMessage(chatDetails.telegramId, CropImageResponses.ImageNotSentOnBotWaitingForImage);
+      this.botInstace.sendMessage(chatDetails.telegramId, ChatResponses.ImageNotSentOnBotWaitingForImage);
       return;
     }
 
-    await this.processSanitizedImage(chatDetails, document);
+    // await this.processSanitizedImage(chatDetails, document);
   }
 
   private async processImage(message: TelegramBot.Message, chatDetails: IChatDetail): Promise<void> {
@@ -89,15 +100,27 @@ export class InteractionManager {
     // }
 
     const highestResPhoto = photo[photo.length - 1];
+    const doesImageNeedsEnlargement =
+      highestResPhoto.width < this.stickerWidth || highestResPhoto.height < this.stickerHeight;
 
-    if (highestResPhoto.width < 512 || highestResPhoto.height < 512) {
-      // TODO: Add logger for this exception
-      chatDetails.state = ChatState.BotWaitingForImage;
-      await this.chatDetailService.upsertOne(chatDetails);
-      return;
-    }
+    // if (highestResPhoto.width < this.stickerWidth || highestResPhoto.height < this.stickerHeight) {
+    //   // TODO: Add logger for this exception
+    //   chatDetails.state = ChatState.BotWaitingForImage;
+    //   await this.chatDetailService.upsertOne(chatDetails);
+    //   return;
+    // }
 
-    await this.processSanitizedImage(chatDetails, null, highestResPhoto);
+    // if (highestResPhoto.width !== highestResPhoto.height) {
+    //   Logger.log(`${LogMessages.INTERACTIONS_MANAGER_IMAGE_NOT_SQUARE} UserTelegramId=${chatDetails.telegramId}`);
+    //   chatDetails.state = ChatState.ImageNotSquareWaitingConfirmation;
+    //   this.botInstace.sendMessage(chatDetails.telegramId, ChatResponses.ImageNotSquareWaitingForConfirmation, {
+    //     parse_mode: 'Markdown',
+    //   });
+    //   await this.chatDetailService.upsertOne(chatDetails);
+    //   return;
+    // }
+
+    await this.processSanitizedImage(chatDetails, highestResPhoto, doesImageNeedsEnlargement);
   }
 
   // /*
@@ -109,26 +132,25 @@ export class InteractionManager {
   //   AND: The state of the telegram chat is updated to [UserWaitingForBotImage]
   // */
   private async processSanitizedImage(
-    chatContext: IChatDetail,
-    document?: TelegramBot.Document,
-    photo?: TelegramBot.PhotoSize,
+    chatDetail: IChatDetail,
+    highestResPhoto: TelegramBot.PhotoSize,
+    doesImageNeedsEnlargement: boolean,
   ): Promise<void> {
-    const fileStream = this.botInstace.getFileStream(document.file_id);
+    const resizeFitKey: keyof sharp.FitEnum = doesImageNeedsEnlargement ? 'fill' : 'contain';
+    const fileStream = this.botInstace.getFileStream(highestResPhoto.file_id);
     const fileBuffer = await this.imageService.streamToBuffer(fileStream);
-    let fileCropped: Buffer;
+    const fileCropped = await this.imageService.resizeImage(
+      fileBuffer,
+      this.stickerWidth,
+      this.stickerHeight,
+      resizeFitKey,
+    );
 
-    if (document) {
-      fileCropped = await this.imageService.cropImage(fileBuffer, document.thumb.width, document.thumb.height);
-    }
+    chatDetail.state = ChatState.CroppedImageDelivered;
+    await this.chatDetailService.upsertOne(chatDetail);
 
-    if (photo) {
-      fileCropped = await this.imageService.cropImage(fileBuffer, photo.width, photo.height);
-    }
-
-    chatContext.state = ChatState.CroppedImageDelivered;
-    await this.chatDetailService.upsertOne(chatContext);
-
-    this.botInstace.sendDocument(chatContext.telegramId, fileCropped);
-    this.botInstace.sendMessage(chatContext.telegramId, CropImageResponses.CroppedImageDelivered);
+    this.botInstace.sendDocument(chatDetail.telegramId, fileCropped, {
+      caption: ChatResponses.CroppedImageDelivered,
+    });
   }
 }

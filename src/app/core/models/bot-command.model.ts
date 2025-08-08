@@ -2,9 +2,10 @@ import { BotCommand, BotCommandsDescription } from '../../constants/bot-commands
 import { StartCommandHandler } from '../commands/handlers/start.handler';
 import { ChatDetailService } from '../services/chat-detail-service';
 import { ImageService } from '../services/image-service';
-import { CropImageResponses, StartMessage } from '../../constants/response-constants';
-import { CropImageHandler } from '../commands/handlers/crop-image.handler';
+import { ChatResponses, StartMessage } from '../../constants/response-constants';
+import { ResizeImageHandler } from '../commands/handlers/resize-image.handler';
 import { BotCommandGroup } from './bot-command-group.model';
+import { ConfirmResizeImageHandler } from '../commands/handlers/confirm-resize-image.handler';
 
 export class BotCommandModel {
   readonly groups: Map<string, BotCommandGroup>;
@@ -32,15 +33,28 @@ export class BotCommandModel {
     );
 
     this.groups.set(
-      BotCommand.CropImage,
+      BotCommand.ResizeImage,
       new BotCommandGroup(
-        BotCommand.CropImage,
-        BotCommandsDescription.CropImage,
-        new CropImageHandler(this.chatContextService, this.imageService),
+        BotCommand.ResizeImage,
+        BotCommandsDescription.ResizeImage,
+        new ResizeImageHandler(this.chatContextService),
         (msg) => ({
           chatId: msg.chat.id,
         }),
-        CropImageResponses.ChatInit,
+        ChatResponses.ChatInit,
+      ),
+    );
+
+    this.groups.set(
+      BotCommand.ConfirmResizeImage,
+      new BotCommandGroup(
+        BotCommand.ConfirmResizeImage,
+        BotCommandsDescription.ConfirmResizeImage,
+        new ConfirmResizeImageHandler(this.chatContextService),
+        (msg) => ({
+          chatId: msg.chat.id,
+        }),
+        ChatResponses.ImageNotSquareConfirmed,
       ),
     );
   }

@@ -27,6 +27,19 @@ export class ImageService {
       .toBuffer();
   }
 
+  async resizeImage(buffer: Buffer, width: number, height: number, resizeFit: keyof sharp.FitEnum = 'contain') {
+    // if the image needs to be enlarged use 'fill', if not use 'contain'
+    return await sharp(buffer)
+      .resize({
+        width,
+        height,
+        fit: resizeFit,
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
+      })
+      .png()
+      .toBuffer();
+  }
+
   async streamToBuffer(readableStream: Stream): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const chunks: Buffer[] = [];
