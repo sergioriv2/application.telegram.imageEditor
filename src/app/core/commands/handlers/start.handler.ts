@@ -1,20 +1,19 @@
-import { IBotCommandExecutor } from './bot-command-executor.interface';
-import { ChatContextService } from '../../services/chat-context-service';
-import { StartCommandContext } from '../contexts/start-command.context';
-import { ChatContextStates } from '../../../constants/chat-context-states.constants';
-import { IChatContext } from '../../schemas/chat-context.schema';
+import { IBotCommandExecutor } from '../../interfaces/bot-command-executor.interface';
+import { ChatDetailService } from '../../services/chat-detail-service';
+import { StartCommandContext } from '../../common/contexts/start-command.context';
+import { ChatState } from '../../../constants/chat-states.constants';
+import { IChatDetail } from '../../interfaces/chat-detail.interface';
 
 export class StartCommandHandler implements IBotCommandExecutor<StartCommandContext> {
-  constructor(private chatContextService: ChatContextService) {}
+  constructor(private readonly chatDetailService: ChatDetailService) {}
 
   async execute(context: StartCommandContext): Promise<void> {
-    const newChat: IChatContext = {
+    const newChat: IChatDetail = {
       telegramId: context.chatId,
-      state: ChatContextStates.ChatInit,
+      state: ChatState.ChatInit,
     };
 
-    await this.chatContextService.upsertOne(newChat);
+    await this.chatDetailService.upsertOne(newChat);
     return;
-    // await this.botInstance.sendMessage(context.chatId, StartMessage.Response);
   }
 }

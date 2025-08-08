@@ -1,11 +1,7 @@
 import { Schema } from 'mongoose';
+import { IChatDetail } from '../interfaces/chat-detail.interface';
 
-export interface IChatContext {
-  telegramId: number;
-  state: string;
-}
-
-export const chatContextSchema = new Schema<IChatContext>(
+export const chatDetailSchema = new Schema<IChatDetail>(
   {
     telegramId: {
       type: Number,

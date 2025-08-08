@@ -1,4 +1,4 @@
-export enum ChatContextStates {
+export enum ChatState {
   ChatInit = 'ChatInit',
   BotWaitingForImage = 'BotWaitingForImage',
   CroppedImageDelivered = 'CroppedImageDelivered',
