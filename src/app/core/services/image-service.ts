@@ -2,7 +2,15 @@ import sharp from 'sharp';
 import Stream from 'stream';
 
 export class ImageService {
-  constructor() {}
+  private validMimeTypes: string[];
+  constructor() {
+    this.validMimeTypes = ['image/png', 'image/jpeg', 'image/tiff'];
+  }
+
+  isValidMimeType(mimeType: string): boolean {
+    console.log({ mimeType });
+    return this.validMimeTypes.includes(mimeType);
+  }
 
   async cropImage(buffer: Buffer, width: number, height: number) {
     const widthOffsetCalc = Math.floor((width - 512) / 2);
@@ -14,6 +22,19 @@ export class ImageService {
         left: widthOffsetCalc,
         width: 512,
         height: 512,
+      })
+      .png()
+      .toBuffer();
+  }
+
+  async resizeImage(buffer: Buffer, width: number, height: number, resizeFit: keyof sharp.FitEnum = 'contain') {
+    // if the image needs to be enlarged use 'fill', if not use 'contain'
+    return await sharp(buffer)
+      .resize({
+        width,
+        height,
+        fit: resizeFit,
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
       })
       .png()
       .toBuffer();

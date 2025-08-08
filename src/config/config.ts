@@ -12,10 +12,11 @@ export class ConfigurationProperties {
 
     this.properties = {
       TelegramApiToken: process.env.TELEGRAM_API_TOKEN,
-      MongoDBSecret: process.env.MONGODB_SECRET,
-      MongoDBUser: process.env.MONGODB_USER,
-      MongoDBCluster: process.env.MONGODB_CLUSTER,
-      MongoDbCollectionName: process.env.MONGODB_COLLECTION_NAME,
+      AwsMongoDBAccessKey: process.env.AWS_DB_ACCESS_KEY_ID,
+      AwsMongoDBSecretAccessKey: process.env.AWS_DB_SECRET_ACCESS_KEY_ID,
+      AwsRegion: process.env.AWS_REGION,
+      MongoDBAppName: process.env.MONGODB_APP_NAME,
+      MongoDBClusterName: process.env.MONGODB_CLUSTER_NAME,
     };
 
     // Logger.log(LogMessages.CONFIGURE_COMPLETE);
