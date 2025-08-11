@@ -39,6 +39,20 @@ export class TelegramBotService {
   }
 
   init(): void {
+    this.telegramBot.on('message', async (msg: TelegramBot.Message) => {
+      const text = msg.text?.trim();
+      const isCommand = text?.startsWith('/');
+      const hasPhoto = !!msg.photo;
+      const isOnCommandGroup: string | null = [...this.botCommands.groups.values()].find(
+        (x) => x.command === text,
+      )?.[0];
+
+      // Ignore commands and photos — they're already handled
+      if (isCommand || hasPhoto || isOnCommandGroup) return;
+
+      await this.dispatcher.handleChatImage(msg);
+    });
+
     // Listener for the registered commands:
     // 1. /start
     // 2. /cropimage

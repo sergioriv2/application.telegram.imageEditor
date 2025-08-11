@@ -7,6 +7,7 @@ import { ChatResponses } from '../../constants/response-constants';
 import sharp from 'sharp';
 
 export class InteractionManager {
+  private readonly defaultMessage: string;
   private readonly stickerWidth: number = 512;
   private readonly stickerHeight: number = 512;
 
@@ -14,7 +15,9 @@ export class InteractionManager {
     private readonly chatDetailService: ChatDetailService,
     private readonly imageService: ImageService,
     private readonly botInstace: TelegramBot,
-  ) {}
+  ) {
+    this.defaultMessage = `${ChatResponses.BotDefaultResponse}\n\n ${ChatResponses.BotAvailableOptions_v1}`;
+  }
 
   private async handleSharedEvents(
     message: TelegramBot.Message,
@@ -38,7 +41,9 @@ export class InteractionManager {
         await this.processImage(message, chatDetails);
         break;
       default:
-        this.botInstace.sendMessage(chatDetails.telegramId, 'No entendi. Chau');
+        this.botInstace.sendMessage(chatDetails.telegramId, this.defaultMessage, {
+          parse_mode: 'Markdown',
+        });
         break;
     }
   }
